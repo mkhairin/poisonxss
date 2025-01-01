@@ -1,0 +1,7 @@
+Results for http://192.168.220.246/dvwa/vulnerabilities/xss_r/?name=1:
+[SAFE] Parameter 'name' did not execute payload: <script>alert(1)</script>
+[SAFE] Parameter 'name' did not execute payload: '"><script>alert(1)</script>
+[SAFE] Parameter 'name' did not execute payload: <img src=x onerror=alert(1)>
+[SAFE] Parameter 'name' did not execute payload: <svg/onload=alert(1)>
+[SAFE] Parameter 'name' did not execute payload: <iframe src=javascript:alert(1)>
+
