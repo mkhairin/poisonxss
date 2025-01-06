@@ -2,7 +2,7 @@ import argparse
 import requests
 from urllib.parse import urlparse, urlencode, parse_qs
 from colorama import Fore, init
-from datetime import datetime  # Tambahkan import ini
+from datetime import datetime
 import random
 import string
 
@@ -45,7 +45,7 @@ def test_xss(url, xss_payloads, output_file=None):
     # Cek setiap parameter URL untuk kerentanannya
     for param_name in params:
         for payload in xss_payloads:
-            timestamp = datetime.now().strftime('%H:%M:%S')   # Waktu sekarang
+            timestamp = datetime.now().strftime('%H:%M:%S')  # Waktu sekarang
             modified_params = {**params, param_name: [payload]}
             query_string = urlencode(modified_params, doseq=True)
             test_url = f"{base_url}?{query_string}"
@@ -102,6 +102,10 @@ def main():
     parser.add_argument(
         "-o", "--output", help="Output file to save results (optional)"
     )
+    parser.add_argument(
+        "--use-obfuscation", action="store_true",
+        help="Use obfuscation to bypass WAF"
+    )
 
     args = parser.parse_args()
 
@@ -125,8 +129,11 @@ def main():
             return
 
     for url in urls:
-        bypassed_payloads = [generate_obfuscated_payload(
-            p) for p in payloads] + [generate_random_payload()]
+        if args.use_obfuscation:
+            bypassed_payloads = [generate_obfuscated_payload(
+                p) for p in payloads] + [generate_random_payload()]
+        else:
+            bypassed_payloads = payloads + [generate_random_payload()]
         test_xss(url, bypassed_payloads, output_file=args.output)
 
 
