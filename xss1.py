@@ -34,6 +34,7 @@ def generate_random_payload():
 def test_xss(url, xss_payloads, output_file=None):
     print(f"[INFO] Testing XSS on {url}\n")
     results = []
+    vulnerable_params = {}  # Untuk menyimpan parameter rentan
     parsed_url = urlparse(url)
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
     params = parse_qs(parsed_url.query)
@@ -58,10 +59,25 @@ def test_xss(url, xss_payloads, output_file=None):
                 result = f"{Fore.BLUE}[{timestamp}] {Fore.RED}[VULNERABLE - XSS] Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
                 print(result)
                 results.append(result)
+                # Tambahkan parameter rentan ke dictionary
+                if param_name not in vulnerable_params:
+                    vulnerable_params[param_name] = {"count": 0, "type": "XSS"}
+                vulnerable_params[param_name]["count"] += 1
             else:
                 print(
                     f"{Fore.BLUE}[{timestamp}] {Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}"
                 )
+
+    # Tampilkan hasil akhir
+    if vulnerable_params:
+        print(f"\n{Fore.GREEN}[SUMMARY] Vulnerable parameters found:")
+        for param, details in vulnerable_params.items():
+            print(
+                f"{Fore.YELLOW}- Parameter: '{param}' | Count: {details['count']} | Type: {details['type']}")
+        print(
+            f"\n{Fore.CYAN}Total vulnerable parameters: {len(vulnerable_params)}")
+    else:
+        print(f"\n{Fore.GREEN}[SUMMARY] No vulnerable parameters found.")
 
     if output_file:
         with open(output_file, 'a') as file:
