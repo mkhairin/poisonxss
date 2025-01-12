@@ -52,12 +52,12 @@ def test_xss(url, xss_payloads, output_file=None):
             query_string = urlencode(modified_params, doseq=True)
             test_url = f"{base_url}?{query_string}"
             print(
-                f"{Fore.BLUE}[{timestamp}] {Fore.WHITE}[TESTING] XSS URL: {test_url}")
+                f"[{Fore.BLUE}{timestamp}{Fore.WHITE}][TESTING] XSS URL: {test_url}")
 
             response = send_request(test_url)
 
             if response and payload in response.text:
-                result = f"{Fore.BLUE}[{timestamp}] {Fore.RED}[VULNERABLE - XSS] Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
+                result = f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
                 print(result)
                 results.append(result)
                 # Tambahkan parameter rentan ke dictionary
@@ -68,22 +68,22 @@ def test_xss(url, xss_payloads, output_file=None):
                 vulnerable_urls.append(test_url)
             else:
                 print(
-                    f"{Fore.BLUE}[{timestamp}] {Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}"
+                    f"[{Fore.BLUE}{timestamp}{Fore.WHITE}]{Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}"
                 )
 
     # Tampilkan hasil akhir
     if vulnerable_params:
-        print(f"\n{Fore.GREEN}[SUMMARY] Vulnerable parameters found:")
+        print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] Vulnerable parameters found:")
         for param, details in vulnerable_params.items():
             print(
-                f"{Fore.YELLOW}- Parameter: '{param}' | Count: {details['count']} | Type: {details['type']}")
-        print(f"\n{Fore.CYAN}Total vulnerable parameters: {len(vulnerable_params)}")
+                f"- Parameter: '{Fore.GREEN}{param}{Fore.WHITE}' | Count: {details['count']} | Type: {Fore.RED}{details['type']}")
+        print(f"\nTotal vulnerable parameters: {Fore.RED}{len(vulnerable_params)}")
 
-        print(f"\n{Fore.GREEN}[DETAIL] Vulnerable URLs:")
+        print(f"\n[{Fore.GREEN}DETAIL{Fore.WHITE}] Vulnerable URLs:")
         for url in vulnerable_urls:
             print(f"{Fore.RED}- {url}")
     else:
-        print(f"\n{Fore.GREEN}[SUMMARY] No vulnerable parameters found.")
+        print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] No vulnerable parameters found.")
 
     if output_file:
         with open(output_file, 'a') as file:
@@ -103,10 +103,12 @@ def load_payloads(file_path):
 
 def main():
     print(r"""
-   ___  ____  ____________  _  ___  __________
-  / _ \/ __ \/  _/ __/ __ \/ |/ / |/_/ __/ __/
- / ___/ /_/ // /_\ \/ /_/ /    />  <_\ \_\ \  
-/_/   \____/___/___/\____/_/|_/_/|_/___/___/    
+                 _                                
+    ____  ____  (_)________  ____  _  ____________
+   / __ \/ __ \/ / ___/ __ \/ __ \| |/_/ ___/ ___/
+  / /_/ / /_/ / (__  ) /_/ / / / />  <(__  |__  ) 
+ / .___/\____/_/____/\____/_/ /_/_/|_/____/____/  
+/_/                                               
 
    XSS Vulnerability Testing Tool
     """)
