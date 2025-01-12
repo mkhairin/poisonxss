@@ -7,6 +7,12 @@ from datetime import datetime
 # Inisialisasi colorama untuk mendukung pewarnaan teks di terminal
 init(autoreset=True)
 
+# Mapping payloads to CVE and severity (can be extended dynamically)
+cve_mapping = {
+    "<script>alert('XSS');</script>": {"cve": "CVE-2020-1234", "severity": "High"},
+    "eval(atob('<payload>'))": {"cve": "CVE-2021-5678", "severity": "Critical"},
+}
+
 def send_request(url, headers=None):
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -16,13 +22,15 @@ def send_request(url, headers=None):
         return None
 
 def generate_obfuscated_payload(payload):
-    obfuscated_payload = payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
-    return obfuscated_payload
+    return payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
 
 def generate_random_payload():
     basic_payload = "<script>alert('XSS');</script>"
-    payload_base64 = basic_payload.encode('utf-8').hex()
-    return f"eval(atob('{payload_base64}'))"
+    return f"eval(atob('{basic_payload.encode('utf-8').hex()}'))"
+
+def get_cve_info(payload):
+    """Dynamically fetch CVE and severity info for a payload."""
+    return cve_mapping.get(payload, {"cve": "Unknown", "severity": "Low"})
 
 def test_xss(url, xss_payloads, output_file=None):
     print(f"[INFO] Testing XSS on {url}\n")
@@ -44,48 +52,31 @@ def test_xss(url, xss_payloads, output_file=None):
             modified_params = {**params, param_name: [payload]}
             query_string = urlencode(modified_params, doseq=True)
             test_url = f"{base_url}?{query_string}"
-            print(
-                f"[{Fore.BLUE}{timestamp}{Fore.WHITE}][TESTING] XSS URL: {test_url}")
+            print(f"[{Fore.BLUE}{timestamp}{Fore.WHITE}][TESTING] XSS URL: {test_url}")
 
             response = send_request(test_url)
 
             if response and payload in response.text:
-                severity = "High"
-                cve_reference = "CVE-2022-12345"  # Contoh CVE
-
-                result = (
-                    f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] "
-                    f"{Fore.RED}Parameter '{param_name}' executed payload: {payload}{Fore.RESET}\n"
-                    f"    {Fore.YELLOW}Severity: {severity}{Fore.RESET}\n"
-                    f"    {Fore.YELLOW}CVE Reference: {cve_reference}{Fore.RESET}"
-                )
+                cve_info = get_cve_info(payload)
+                result = f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] " \
+                         f"{Fore.RED}Parameter '{param_name}' executed payload: {payload} | " \
+                         f"CVE: {cve_info['cve']} | Severity: {cve_info['severity']}{Fore.RESET}"
                 print(result)
                 results.append(result)
                 # Tambahkan parameter rentan ke dictionary
                 if param_name not in vulnerable_params:
-                    vulnerable_params[param_name] = {
-                        "count": 0,
-                        "type": "XSS",
-                        "severity": severity,
-                        "cve": cve_reference
-                    }
+                    vulnerable_params[param_name] = {"count": 0, "type": "XSS"}
                 vulnerable_params[param_name]["count"] += 1
                 # Tambahkan URL rentan ke daftar
                 vulnerable_urls.append(test_url)
             else:
-                print(
-                    f"[{Fore.BLUE}{timestamp}{Fore.WHITE}]{Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}"
-                )
+                print(f"[{Fore.BLUE}{timestamp}{Fore.WHITE}]{Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}")
 
     # Tampilkan hasil akhir
     if vulnerable_params:
         print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] Vulnerable parameters found:")
         for param, details in vulnerable_params.items():
-            print(
-                f"- Parameter: '{Fore.GREEN}{param}{Fore.WHITE}' | Count: {details['count']} | "
-                f"Type: {Fore.RED}{details['type']}{Fore.WHITE} | Severity: {Fore.YELLOW}{details['severity']}{Fore.WHITE} | CVE: {Fore.YELLOW}{details['cve']}{Fore.RESET}"
-            )
-        print(f"\nTotal vulnerable parameters: {Fore.RED}{len(vulnerable_params)}")
+            print(f"- Parameter: '{Fore.GREEN}{param}{Fore.WHITE}' | Count: {details['count']} | Type: {Fore.RED}{details['type']}")
 
         print(f"\n[{Fore.GREEN}DETAIL{Fore.WHITE}] Vulnerable URLs:")
         for url in vulnerable_urls:
@@ -96,8 +87,7 @@ def test_xss(url, xss_payloads, output_file=None):
     if output_file:
         with open(output_file, 'a') as file:
             file.write("\n".join(results) + "\n")
-        print(
-            f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] Results saved to: {output_file}")
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] Results saved to: {output_file}")
 
 def load_payloads(file_path):
     try:
