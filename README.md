@@ -11,3 +11,39 @@ PoisonXSS is a tool designed for automating the exploitation of Cross-Site Scrip
 ## Installation
 
 1. **Clone the Repository:**
+2. **Prepare the Environment:**
+Ensure Python is installed on your system. If not, download it from [python.org](https://www.python.org/).
+
+3. **Install Dependencies:**
+Run the following command to install the required dependencies:
+
+
+### Command Options
+
+- `-u`: The target URL to be tested.
+- `-p`: The path to the file containing XSS payloads.
+
+### Example Payload
+
+The `payload.txt` file can contain multiple payloads, such as:
+
+
+## Notes
+
+- **Permission:** Only use this tool for legitimate purposes, such as testing the security of your own web applications or with explicit permission from the application owner.
+- **User Responsibility:** You are solely responsible for the usage of this tool.
+
+## License
+
+This project is licensed under the MIT License.
+
+## Contributions
+
+Contributions are always welcome! Fork this repository, make your changes, and submit a pull request.
+
+## Contact
+
+For questions or feedback, please submit an issue on the [Issues page](https://github.com/mkhairin/poisonxss/issues).
+
+
+
