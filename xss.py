@@ -3,12 +3,9 @@ import requests
 from urllib.parse import urlparse, urlencode, parse_qs
 from colorama import Fore, init
 from datetime import datetime
-import random
-import string
 
 # Inisialisasi colorama untuk mendukung pewarnaan teks di terminal
 init(autoreset=True)
-
 
 def send_request(url, headers=None):
     try:
@@ -18,18 +15,14 @@ def send_request(url, headers=None):
         print(f"[ERROR] Request failed: {e}")
         return None
 
-
 def generate_obfuscated_payload(payload):
-    obfuscated_payload = payload.replace(
-        "<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
+    obfuscated_payload = payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
     return obfuscated_payload
-
 
 def generate_random_payload():
     basic_payload = "<script>alert('XSS');</script>"
     payload_base64 = basic_payload.encode('utf-8').hex()
     return f"eval(atob('{payload_base64}'))"
-
 
 def test_xss(url, xss_payloads, output_file=None):
     print(f"[INFO] Testing XSS on {url}\n")
@@ -57,12 +50,25 @@ def test_xss(url, xss_payloads, output_file=None):
             response = send_request(test_url)
 
             if response and payload in response.text:
-                result = f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] {Fore.RED}Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
+                severity = "High"
+                cve_reference = "CVE-2022-12345"  # Contoh CVE
+
+                result = (
+                    f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] "
+                    f"{Fore.RED}Parameter '{param_name}' executed payload: {payload}{Fore.RESET}\n"
+                    f"    {Fore.YELLOW}Severity: {severity}{Fore.RESET}\n"
+                    f"    {Fore.YELLOW}CVE Reference: {cve_reference}{Fore.RESET}"
+                )
                 print(result)
                 results.append(result)
                 # Tambahkan parameter rentan ke dictionary
                 if param_name not in vulnerable_params:
-                    vulnerable_params[param_name] = {"count": 0, "type": "XSS"}
+                    vulnerable_params[param_name] = {
+                        "count": 0,
+                        "type": "XSS",
+                        "severity": severity,
+                        "cve": cve_reference
+                    }
                 vulnerable_params[param_name]["count"] += 1
                 # Tambahkan URL rentan ke daftar
                 vulnerable_urls.append(test_url)
@@ -76,7 +82,9 @@ def test_xss(url, xss_payloads, output_file=None):
         print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] Vulnerable parameters found:")
         for param, details in vulnerable_params.items():
             print(
-                f"- Parameter: '{Fore.GREEN}{param}{Fore.WHITE}' | Count: {details['count']} | Type: {Fore.RED}{details['type']}")
+                f"- Parameter: '{Fore.GREEN}{param}{Fore.WHITE}' | Count: {details['count']} | "
+                f"Type: {Fore.RED}{details['type']}{Fore.WHITE} | Severity: {Fore.YELLOW}{details['severity']}{Fore.WHITE} | CVE: {Fore.YELLOW}{details['cve']}{Fore.RESET}"
+            )
         print(f"\nTotal vulnerable parameters: {Fore.RED}{len(vulnerable_params)}")
 
         print(f"\n[{Fore.GREEN}DETAIL{Fore.WHITE}] Vulnerable URLs:")
@@ -91,7 +99,6 @@ def test_xss(url, xss_payloads, output_file=None):
         print(
             f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] Results saved to: {output_file}")
 
-
 def load_payloads(file_path):
     try:
         with open(file_path, 'r') as file:
@@ -99,7 +106,6 @@ def load_payloads(file_path):
     except FileNotFoundError:
         print("[ERROR] Payload file not found! Exiting.")
         return []
-
 
 def main():
     print(r"""
@@ -159,7 +165,6 @@ def main():
         else:
             bypassed_payloads = payloads + [generate_random_payload()]
         test_xss(url, bypassed_payloads, output_file=args.output)
-
 
 if __name__ == "__main__":
     main()
