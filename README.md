@@ -11,10 +11,11 @@ PoisonXSS is a tool designed for automating the exploitation of Cross-Site Scrip
 ## Installation
 
 1. **Clone the Repository:**
-2. **Prepare the Environment:**
+   ```git clone https://github.com/mkhairin/poisonxss cd poisonxss```
+3. **Prepare the Environment:**
 Ensure Python is installed on your system. If not, download it from [python.org](https://www.python.org/).
 
-3. **Install Dependencies:**
+4. **Install Dependencies:**
 Run the following command to install the required dependencies:
 
 
