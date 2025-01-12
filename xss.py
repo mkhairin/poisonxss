@@ -57,7 +57,7 @@ def test_xss(url, xss_payloads, output_file=None):
             response = send_request(test_url)
 
             if response and payload in response.text:
-                result = f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
+                result = f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] {Fore.RED}Parameter '{param_name}' executed payload: {payload}{Fore.RESET}"
                 print(result)
                 results.append(result)
                 # Tambahkan parameter rentan ke dictionary
