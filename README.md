@@ -1,6 +1,6 @@
 # PoisonXSS
 
-PoisonXSS is a tool designed for automating the exploitation of Cross-Site Scripting (XSS) vulnerabilities. This tool allows security testing of web applications by using a payload provided by the user to identify and exploit potential XSS vulnerabilities.
+PoisonXSS is a powerful, automated tool designed to assist in identifying and exploiting Cross-Site Scripting (XSS) vulnerabilities in web applications. By leveraging customizable payloads, this tool enables security professionals and ethical hackers to test the security of web applications efficiently. PoisonXSS systematically injects user-provided payloads into specified URL parameters, searching for potential vulnerabilities that could be exploited to execute malicious scripts in the context of a user's browser. The tool offers flexibility with payload management, supports both HTTP and HTTPS protocols, and provides detailed logging of activities for tracking test results. Perfect for penetration testing, security assessments, and vulnerability validation, PoisonXSS is an essential tool for securing web applications against XSS attacks.
 
 ## Features
 
