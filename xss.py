@@ -134,7 +134,8 @@ def main():
  / .___/\____/_/____/\____/_/ /_/_/|_/____/____/  
 /_/                                               
 
-   XSS Vulnerability Testing Tool (Version 0.2)
+   XSS Vulnerability Testing Tool (Version 0.1)
+   Tool by Muhammad Khairin
     """)
 
     parser = argparse.ArgumentParser(description="XSS Vulnerability Tester")
