@@ -3,6 +3,7 @@ import requests
 from urllib.parse import urlparse, urlencode, parse_qs
 from colorama import Fore, init
 from datetime import datetime
+import socket
 
 # Inisialisasi colorama untuk mendukung pewarnaan teks di terminal
 init(autoreset=True)
@@ -21,6 +22,27 @@ def send_request(url, headers=None):
         print(f"[ERROR] Request failed: {e}")
         return None
 
+def get_website_info(url):
+    """Mendapatkan informasi domain, IP address, dan firewall (jika tersedia)"""
+    try:
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        ip_address = socket.gethostbyname(domain)
+
+        # Dummy firewall detection (as actual detection needs advanced techniques)
+        headers = {"User-Agent": "Mozilla/5.0"}
+        response = requests.head(url, headers=headers, timeout=10)
+        firewall_info = "WAF Detected" if 'x-firewall' in response.headers else "No WAF Detected"
+
+        return {
+            "domain": domain,
+            "ip_address": ip_address,
+            "firewall_info": firewall_info
+        }
+    except Exception as e:
+        print(f"[ERROR] Failed to retrieve website information: {e}")
+        return None
+
 def generate_obfuscated_payload(payload):
     return payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
 
@@ -33,7 +55,14 @@ def get_cve_info(payload):
     return cve_mapping.get(payload, {"cve": "Unknown", "severity": "Low"})
 
 def test_xss(url, xss_payloads, output_file=None):
-    print(f"[INFO] Testing XSS on {url}\n")
+    website_info = get_website_info(url)
+
+    if website_info:
+        print(f"\n[INFO] Testing XSS on {Fore.CYAN}{url}{Fore.WHITE}")
+        print(f"[INFO] Domain: {Fore.GREEN}{website_info['domain']}")
+        print(f"[INFO] IP Address: {Fore.GREEN}{website_info['ip_address']}")
+        print(f"[INFO] Firewall Status: {Fore.YELLOW}{website_info['firewall_info']}\n")
+
     results = []
     vulnerable_params = {}  # Untuk menyimpan parameter rentan
     vulnerable_urls = []   # Untuk menyimpan URL rentan
@@ -75,7 +104,7 @@ def test_xss(url, xss_payloads, output_file=None):
     if vulnerable_params:
         print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] Vulnerable parameters found:")
         for param, details in vulnerable_params.items():
-            print(f"- Parameter: '{Fore.RED}{param}{Fore.WHITE}' | Count: {Fore.RED}{details['count']} | Type: {Fore.RED}{details['type']}")
+            print(f"- Parameter: '{Fore.RED}{param}{Fore.WHITE}' | Count: {Fore.RED}{details['count']}{Fore.WHITE} | Type: {Fore.RED}{details['type']}")
 
         print(f"\n[{Fore.GREEN}DETAIL{Fore.WHITE}] Vulnerable URLs:")
         for url in vulnerable_urls:
@@ -105,7 +134,7 @@ def main():
  / .___/\____/_/____/\____/_/ /_/_/|_/____/____/  
 /_/                                               
 
-   XSS Vulnerability Testing Tool (Version 0.1)
+   XSS Vulnerability Testing Tool (Version 0.2)
     """)
 
     parser = argparse.ArgumentParser(description="XSS Vulnerability Tester")
