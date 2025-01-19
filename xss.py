@@ -64,7 +64,7 @@ def test_xss(url, xss_payloads, output_file=None):
     website_info = get_website_info(url)
 
     if website_info:
-        print(f"\n[INFO] Testing XSS on {Fore.CYAN}{url}{Fore.WHITE}")
+        print(f"\n[{Fore.GREEN}INFO{Fore.WHITE}] Testing XSS on {Fore.CYAN}{url}{Fore.WHITE}")
         print(
             f"[{Fore.GREEN}INFO{Fore.WHITE}] DOMAIN: {Fore.GREEN}{website_info['domain']}")
         print(
