@@ -59,8 +59,7 @@ def test_xss(url, xss_payloads, output_file=None):
             if response and payload in response.text:
                 cve_info = get_cve_info(payload)
                 result = f"[{Fore.LIGHTBLUE_EX}{timestamp}{Fore.WHITE}][{Fore.RED}VULNERABLE - XSS{Fore.WHITE}] " \
-                         f"{Fore.RED}Parameter '{param_name}' executed payload: {payload} | " \
-                         f"CVE: {cve_info['cve']} | Severity: {cve_info['severity']}{Fore.RESET}"
+                         f"{Fore.RED}Parameter '{param_name}' executed payload: {payload}"
                 print(result)
                 results.append(result)
                 # Tambahkan parameter rentan ke dictionary
@@ -76,7 +75,7 @@ def test_xss(url, xss_payloads, output_file=None):
     if vulnerable_params:
         print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] Vulnerable parameters found:")
         for param, details in vulnerable_params.items():
-            print(f"- Parameter: '{Fore.GREEN}{param}{Fore.WHITE}' | Count: {details['count']} | Type: {Fore.RED}{details['type']}")
+            print(f"- Parameter: '{Fore.RED}{param}{Fore.WHITE}' | Count: {Fore.RED}{details['count']} | Type: {Fore.RED}{details['type']}")
 
         print(f"\n[{Fore.GREEN}DETAIL{Fore.WHITE}] Vulnerable URLs:")
         for url in vulnerable_urls:
