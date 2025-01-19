@@ -108,7 +108,7 @@ def test_xss(url, xss_payloads, output_file=None):
 
         print(f"\n[{Fore.GREEN}DETAIL{Fore.WHITE}] Vulnerable URLs:")
         for url in vulnerable_urls:
-            print(f"{Fore.RED}- {url}")
+            print(f"[{Fore.RED}VULNERABLE - XSS{Fore.WHITE}]{Fore.RED} {url}")
     else:
         print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] No vulnerable parameters found.")
 
