@@ -59,9 +59,9 @@ def test_xss(url, xss_payloads, output_file=None):
 
     if website_info:
         print(f"\n[INFO] Testing XSS on {Fore.CYAN}{url}{Fore.WHITE}")
-        print(f"[INFO] Domain: {Fore.GREEN}{website_info['domain']}")
-        print(f"[INFO] IP Address: {Fore.GREEN}{website_info['ip_address']}")
-        print(f"[INFO] Firewall Status: {Fore.YELLOW}{website_info['firewall_info']}\n")
+        print(f"[INFO] DOMAIN: {Fore.GREEN}{website_info['domain']}")
+        print(f"[INFO] IP ADDRESS: {Fore.GREEN}{website_info['ip_address']}")
+        print(f"[INFO] FIREWALL STATUS: {Fore.YELLOW}{website_info['firewall_info']}\n")
 
     results = []
     vulnerable_params = {}  # Untuk menyimpan parameter rentan
