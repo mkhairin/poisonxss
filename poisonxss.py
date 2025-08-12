@@ -110,12 +110,12 @@ class PoisonXSS:
 
     def _print_banner(self):
         print(r"""
-                 _                                
+                 _      
     ____  ____  (_)________  ____  _  ____________
    / __ \/ __ \/ / ___/ __ \/ __ \| |/_/ ___/ ___/
   / /_/ / /_/ / (__  ) /_/ / / / />  <(__  |__  ) 
  / .___/\____/_/____/\____/_/ /_/_/|_/____/____/  
-/_/                                               
+/_/                 Created by Muhammad Khairin                   
         """)
         print(f"{Fore.CYAN}PoisonXSS v{__version__} [Final]{Style.RESET_ALL} | The All-in-One XSS Scanner")
         print(f"[*] Testing Mode  : {Fore.MAGENTA}{self.test_type}{Style.RESET_ALL}")
