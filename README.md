@@ -2,109 +2,109 @@
 
 ![PoisonXSS Banner](https://github.com/mkhairin/poisonxss/blob/main/img/banner2.png)
 
-PoisonXSS adalah tool scanner kerentanan Cross-Site Scripting (XSS) dan HTML Injection yang cepat, fleksibel, dan cerdas. Dibangun dengan Python dan `asyncio`, PoisonXSS mampu melakukan pemindaian secara konkuren untuk efisiensi maksimal.
+PoisonXSS is a fast, flexible, and intelligent vulnerability scanner for Cross-Site Scripting (XSS) and HTML Injection. Built with Python and `asyncio`, PoisonXSS is capable of performing concurrent scans for maximum efficiency.
 
-Dengan fitur-fitur seperti web crawler otomatis, identifikasi teknologi, dan berbagai mode pengujian, PoisonXSS dirancang untuk para profesional keamanan, bug hunter, dan pengembang web untuk menguji keamanan aplikasi web secara mendalam.
+With features like an automated web crawler, technology fingerprinting, and various testing modes, PoisonXSS is designed for security professionals, bug hunters, and web developers to thoroughly test the security of web applications.
 
-## ✨ Fitur Unggulan
+## ✨ Features
 
-- **Pemindaian Asinkron:** Sangat cepat berkat `asyncio` dan `aiohttp`, mampu menangani banyak request secara bersamaan.
-- **Dua Mode Pengujian:** Mendukung pengujian untuk **XSS** dan **HTML Injection** secara spesifik.
-- **Web Crawler (Spider):** Mampu menjelajahi situs target secara otomatis untuk menemukan dan menguji halaman-halaman baru.
-- **Intelijen & Fingerprinting:** Dapat mengidentifikasi teknologi yang digunakan oleh server (misalnya, Apache, Nginx, WordPress) untuk memberikan konteks pada temuan.
-- **Dua Mode Target:** Mendukung pengujian pada satu URL sebagai titik awal (`-u`) atau pada daftar URL yang telah ditentukan (`-l`).
-- **Kontrol Profesional:** Dukungan penuh untuk proxy, kustomisasi header, pengaturan delay antar request, verbose mode, dan jumlah worker.
-- **Payload Kustom:** Gunakan daftar payload Anda sendiri dari sebuah file untuk pengujian yang fleksibel.
-- **Laporan:** Menyimpan hasil pemindaian ke dalam file `.txt` untuk dokumentasi dan analisis lebih lanjut.
+- **Asynchronous Scanning:** Extremely fast thanks to `asyncio` and `aiohttp`, capable of handling many requests simultaneously.
+- **Dual Testing Modes:** Supports specific testing for both **XSS** and **HTML Injection**.
+- **Web Crawler (Spider):** Can automatically crawl a target site to discover and test new pages.
+- **Intelligence & Fingerprinting:** Can identify the technology used by the server (e.g., Apache, Nginx, WordPress) to provide context for findings.
+- **Dual Target Modes:** Supports testing on a single starting URL (`-u`) or a predefined list of URLs (`-l`).
+- **Professional Control:** Full support for proxies, custom headers, request delays, verbose mode, and worker count adjustment.
+- **Custom Payloads:** Use your own payload lists from a file for flexible testing.
+- **Reporting:** Saves scan results to a `.txt` file for documentation and further analysis.
 
-## ⚙️ Instalasi
+## ⚙️ Installation
 
-Proses instalasi sangat mudah dan cepat.
+The installation process is quick and easy.
 
-1.  **Clone Repositori:**
+1.  **Clone the Repository:**
     ```bash
     git clone [https://github.com/mkhairin/poisonxss](https://github.com/mkhairin/poisonxss)
     cd poisonxss
     ```
 
-2.  **Instal Dependensi:**
-    Jalankan perintah berikut di terminal Anda. Ini akan secara otomatis menginstal semua library yang dibutuhkan dari file `requirements.txt` yang sudah ada.
+2.  **Install Dependencies:**
+    Run the following command in your terminal. It will automatically install all required libraries from the existing `requirements.txt` file.
     ```bash
     pip install -r requirements.txt
     ```
-    Sekarang Anda siap untuk menjalankan PoisonXSS.
+    You are now ready to run PoisonXSS.
 
-## 🚀 Cara Menjalankan
+## 🚀 Usage
 
-Gunakan sintaks dasar berikut untuk menjalankan pemindaian:
+Use the following basic syntax to run a scan:
 ```bash
 python poisonxss.py [TARGET] [PAYLOADS] [OPTIONS]
 ```
 
-### Opsi Perintah
+### Command Options
 
-| Flag(s)                         | Deskripsi                                                        |
+| Flag(s)                         | Description                                                        |
 | ------------------------------- | ---------------------------------------------------------------- |
-| **Target (Pilih salah satu)** |                                                                  |
-| `-u URL`, `--url=URL`           | URL awal tunggal untuk pemindaian atau *crawling*.               |
-| `-l FILE`, `--list=FILE`        | File berisi daftar URL untuk diuji.                              |
+| **Target (Choose one)** |                                                                  |
+| `-u URL`, `--url=URL`           | A single starting URL for a scan or crawl.                       |
+| `-l FILE`, `--list=FILE`        | A file containing a list of URLs to test.                        |
 | **Payloads** |                                                                  |
-| `-p FILE`, `--payloads=FILE`    | File berisi *payload* XSS (mode default).                        |
-| `--payloads-htmli=FILE`         | File berisi *payload* HTML Injection (untuk mode `--htmli`).     |
-| **Mode Pengujian** |                                                                  |
-| `--htmli`                       | Mengganti mode pengujian ke HTML Injection.                      |
-| **Crawler (Hanya dengan `-u`)** |                                                                  |
-| `--crawl`                       | Mengaktifkan *web crawler* dari URL awal.                        |
-| `--depth=DEPTH`                 | Kedalaman *crawl* maksimum (default: 2).                         |
-| **Intelijen** |                                                                  |
-| `--fingerprint`                 | Mengaktifkan identifikasi teknologi (*fingerprinting*).          |
-| **Request & Kontrol** |                                                                  |
-| `-H HEADERS`, `--headers=HEADERS` | *Header* kustom, pisahkan dengan koma (cth: `"Cookie:id=123"`).  |
-| `--proxy=PROXY`                 | Menggunakan *proxy* (cth: `http://127.0.0.1:8080`).               |
-| `-v`, `--verbose`               | Menampilkan output detail, termasuk *request* yang aman.         |
-| `--delay=DELAY`                 | Jeda dalam detik di antara setiap *request*.                     |
-| `-w NUM`, `--workers=NUM`       | Jumlah *worker* konkuren (default: 50).                          |
-| `-o FILE`, `--output=FILE`      | Menyimpan laporan pemindaian ke sebuah file.                     |
-| **Lainnya** |                                                                  |
-| `--help-syntax`                 | Menampilkan panduan bantuan ini.                                 |
-| `--version`                     | Menampilkan nomor versi program.                                 |
+| `-p FILE`, `--payloads=FILE`    | A file containing XSS payloads (default mode).                   |
+| `--payloads-htmli=FILE`         | A file containing HTML Injection payloads (for `--htmli` mode).  |
+| **Testing Mode** |                                                                  |
+| `--htmli`                       | Switches the testing mode to HTML Injection.                     |
+| **Crawler (Only with `-u`)** |                                                                  |
+| `--crawl`                       | Enables the web crawler from the start URL.                      |
+| `--depth=DEPTH`                 | Sets the maximum crawl depth (default: 2).                       |
+| **Intelligence** |                                                                  |
+| `--fingerprint`                 | Enables technology fingerprinting.                               |
+| **Request & Control** |                                                                  |
+| `-H HEADERS`, `--headers=HEADERS` | Custom headers, comma-separated (e.g., `"Cookie:id=123"`).       |
+| `--proxy=PROXY`                 | Uses a proxy (e.g., `http://127.0.0.1:8080`).                    |
+| `-v`, `--verbose`               | Displays detailed output, including safe requests.               |
+| `--delay=DELAY`                 | Adds a delay in seconds between each request.                    |
+| `-w NUM`, `--workers=NUM`       | Number of concurrent workers (default: 50).                      |
+| `-o FILE`, `--output=FILE`      | Saves the scan report to a file.                                 |
+| **Other** |                                                                  |
+| `--help-syntax`                 | Shows this detailed help guide.                                  |
+| `--version`                     | Shows the program's version number.                              |
 
-### Contoh Penggunaan
+### Usage Examples
 
-**1. Pemindaian XSS Dasar pada Satu URL**
+**1. Basic XSS Scan on a Single URL**
 ```bash
 python poisonxss.py -u "[http://testphp.vulnweb.com/listproducts.php?cat=1](http://testphp.vulnweb.com/listproducts.php?cat=1)" -p payloads.txt
 ```
 
-**2. Pemindaian pada Daftar URL dari File**
+**2. Scan a List of URLs from a File**
 ```bash
 python poisonxss.py -l urls.txt -p payloads.txt -v
 ```
 
-**3. Menjalankan Crawler dengan Kedalaman 3**
+**3. Run the Crawler with a Depth of 3**
 ```bash
 python poisonxss.py -u [http://testphp.vulnweb.com](http://testphp.vulnweb.com) -p payloads.txt --crawl --depth 3
 ```
 
-**4. Pemindaian HTML Injection Menggunakan Payload Bawaan**
+**4. HTML Injection Scan Using Built-in Payloads**
 ```bash
 python poisonxss.py -u [http://testphp.vulnweb.com](http://testphp.vulnweb.com) --htmli
 ```
 
-**5. Pemindaian Lanjutan: Crawler + Fingerprinting + Verbose + Proxy**
+**5. Advanced Scan: Crawler + Fingerprinting + Verbose + Proxy**
 ```bash
 python poisonxss.py -u [http://testphp.vulnweb.com](http://testphp.vulnweb.com) -p payloads.txt --crawl --fingerprint -v --proxy [http://127.0.0.1:8080](http://127.0.0.1:8080)
 ```
 
-## ⚠️ Catatan
+## ⚠️ Disclaimer
 
-- **Izin:** Gunakan *tool* ini hanya untuk tujuan yang sah, seperti menguji keamanan aplikasi web Anda sendiri atau dengan izin eksplisit dari pemilik aplikasi.
-- **Tanggung Jawab:** Anda bertanggung jawab penuh atas penggunaan *tool* ini.
+- **Permission:** Only use this tool for legitimate purposes, such as testing the security of your own web applications or with explicit permission from the application owner.
+- **Responsibility:** You are solely responsible for your use of this tool.
 
-## Lizensi
+## License
 
-Proyek ini dilisensikan di bawah Lisensi MIT.
+This project is licensed under the MIT License.
 
-## Kontribusi
+## Contributions
 
-Kontribusi selalu diterima! Lakukan *fork* pada repositori ini, buat perubahan Anda, dan kirimkan *pull request*.
+Contributions are always welcome! Fork this repository, make your changes, and submit a pull request.
