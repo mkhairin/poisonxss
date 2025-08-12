@@ -1,6 +1,6 @@
 #
-# PoisonXSS - Version 2.7
-# Added dedicated HTML Injection testing mode.
+# PoisonXSS - Version 2.8
+# Re-introduced URL list testing mode (-l, --list).
 #
 
 import argparse
@@ -19,7 +19,7 @@ except ImportError:
     sys.exit()
 
 # --- Version Configuration & Default Payloads ---
-__version__ = "2.7"
+__version__ = "2.8"
 DEFAULT_HTMLI_PAYLOADS = [
     "<h1>HTMLi-Test-by-PoisonXSS</h1>",
     "<i>PoisonXSS-Was-Here</i>",
@@ -30,32 +30,35 @@ DEFAULT_HTMLI_PAYLOADS = [
 init(autoreset=True)
 
 def show_help_syntax():
-    """Displays a detailed help guide in a sqlmap-style layout."""
+    """Displays a detailed help guide."""
     CYAN, GREEN, RESET, WIDTH = Fore.CYAN, Fore.GREEN, Style.RESET_ALL, 35
     
     print(f"\n{CYAN}PoisonXSS {__version__} - Help Guide{RESET}")
-    print(f"Usage: python poisonxss.py -u <URL> -p <FILE> [options]\n")
+    print(f"Usage: python poisonxss.py [TARGET] -p <FILE> [options]\n")
 
     print(f"{GREEN}Options:{RESET}")
     print(f"  {"-h, --help-syntax".ljust(WIDTH)}Show this advanced help message and exit")
     print(f"  {"--version".ljust(WIDTH)}Show program's version number and exit")
     print(f"  {"-v, --verbose".ljust(WIDTH)}Verbosity level. Shows safe requests.\n")
 
+    print(f"{GREEN}Target (Choose one):{RESET}")
+    print(f"  {"-u URL, --url=URL".ljust(WIDTH)}Single starting URL for a scan or crawl")
+    print(f"  {"-l FILE, --list=FILE".ljust(WIDTH)}File containing a list of URLs to test.\n")
+
+    print(f"{GREEN}Payloads:{RESET}")
+    print(f"  {"-p FILE, --payloads=FILE".ljust(WIDTH)}File with XSS payloads (default mode).")
+    print(f"  {"--payloads-htmli=FILE".ljust(WIDTH)}File with HTML Injection payloads (for --htmli mode).\n")
+
     print(f"{GREEN}Testing Mode:{RESET}")
-    print(f"  {"--htmli".ljust(WIDTH)}Switch to HTML Injection testing mode")
-    print(f"  {"--payloads-htmli=FILE".ljust(WIDTH)}Use custom payloads for HTML Injection test\n")
+    print(f"  {"--htmli".ljust(WIDTH)}Switch to HTML Injection testing mode\n")
     
-    print(f"{GREEN}Target:{RESET}")
-    print(f"  {"-u URL, --url=URL".ljust(WIDTH)}Target URL (e.g. \"http://site.com/vuln.php?id=1\")")
-    print(f"  {"-p PAYLOADS, --payloads=FILE".ljust(WIDTH)}File containing XSS payloads (default mode).\n")
+    print(f"{GREEN}Crawler (Only with -u):{RESET}")
+    print(f"  {"--crawl".ljust(WIDTH)}Enable the web crawler from the start URL")
+    print(f"  {"--depth=DEPTH".ljust(WIDTH)}Maximum crawl depth (default: 2)\n")
     
     print(f"{GREEN}Intelligence:{RESET}")
     print(f"  {"--fingerprint".ljust(WIDTH)}Enable technology fingerprinting\n")
-
-    print(f"{GREEN}Crawler:{RESET}")
-    print(f"  {"--crawl".ljust(WIDTH)}Enable the web crawler to find new targets")
-    print(f"  {"--depth=DEPTH".ljust(WIDTH)}Maximum crawl depth (default: 2)\n")
-
+    
     print(f"{GREEN}Request:{RESET}")
     print(f"  {"-H HEADERS, --headers=HEADERS".ljust(WIDTH)}Custom headers, comma-separated (e.g. \"Cookie:id=123\")")
     print(f"  {"--proxy=PROXY".ljust(WIDTH)}Use a proxy to connect to the target URL\n")
@@ -87,8 +90,9 @@ async def fingerprint_technology(session, url, headers, proxy):
 
 
 class PoisonXSS:
-    def __init__(self, start_url, payloads, test_type='XSS', headers=None, workers=50, proxy=None, verbose=False, delay=0, crawl=False, depth=2, fingerprint=False):
-        self.start_url = start_url
+    def __init__(self, targets, payloads, test_type='XSS', headers=None, workers=50, proxy=None, verbose=False, delay=0, crawl=False, depth=2, fingerprint=False):
+        self.targets = targets
+        self.start_url = targets[0] 
         self.base_payloads = payloads
         self.test_type = test_type
         self.headers = headers or {"User-Agent": f"PoisonXSS/{__version__}"}
@@ -113,10 +117,10 @@ class PoisonXSS:
  / .___/\____/_/____/\____/_/ /_/_/|_/____/____/  
 /_/                                               
         """)
-        print(f"{Fore.CYAN}PoisonXSS v{__version__} [Intel Edition]{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}PoisonXSS v{__version__} [Final]{Style.RESET_ALL} | The All-in-One XSS Scanner")
         print(f"[*] Testing Mode  : {Fore.MAGENTA}{self.test_type}{Style.RESET_ALL}")
         print(f"[*] Start Time    : {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"[*] Start URL     : {self.start_url}")
+        print(f"[*] Targets Loaded: {len(self.targets)}")
         print(f"[*] Base Payloads : {len(self.base_payloads)} loaded")
         if self.crawl: print(f"[*] Crawler Mode  : {Fore.GREEN}Enabled (Depth: {self.depth}){Style.RESET_ALL}")
         if self.fingerprint:
@@ -181,6 +185,7 @@ class PoisonXSS:
         await asyncio.gather(*tasks)
 
     async def run(self):
+        """Main logic to choose between crawl mode or list mode."""
         connector = aiohttp.TCPConnector(ssl=False, limit_per_host=self.workers)
         async with aiohttp.ClientSession(connector=connector) as session:
             if self.fingerprint:
@@ -188,7 +193,14 @@ class PoisonXSS:
             self._print_banner()
             payloads_to_use = self.base_payloads
             print(f"[*] Total payloads to test: {len(payloads_to_use)}")
-            await self._crawl_and_scan(session, self.start_url, 0, payloads_to_use)
+
+            if self.crawl:
+                print("[*] Starting in Crawler Mode...")
+                await self._crawl_and_scan(session, self.start_url, 0, payloads_to_use)
+            else:
+                print("[*] Starting in List Mode...")
+                tasks = [self._test_url_for_injection(session, url, payloads_to_use) for url in self.targets]
+                await asyncio.gather(*tasks)
 
     def print_summary(self, output_file=None):
         end_time = datetime.now()
@@ -224,6 +236,7 @@ class PoisonXSS:
             except IOError as e: print(f"[{Fore.RED}ERROR{Style.RESET_ALL}] Failed to save report to {output_file}: {e}")
 
 def load_payloads_from_file(file_path):
+    """Loads lines from a file, returns None if not found."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return [line.strip() for line in f if line.strip()]
@@ -239,11 +252,15 @@ def main():
     
     parser.add_argument('-h', '--help', '--help-syntax', action='store_true')
     parser.add_argument('--version', action='version', version=f'PoisonXSS {__version__}')
-    parser.add_argument("-u", "--url")
+    
+    target_group = parser.add_mutually_exclusive_group(required=True)
+    target_group.add_argument("-u", "--url", help="Single starting URL for a scan or crawl")
+    target_group.add_argument("-l", "--list", help="File containing a list of URLs to test")
+
     parser.add_argument("-p", "--payloads", help="File with XSS payloads (default mode)")
     parser.add_argument("--payloads-htmli", help="File with HTML Injection payloads (for --htmli mode)")
     parser.add_argument("--htmli", action="store_true", help="Switch to HTML Injection testing mode")
-    parser.add_argument("--crawl", action="store_true")
+    parser.add_argument("--crawl", action="store_true", help="Enable the web crawler (only works with -u)")
     parser.add_argument("--depth", type=int, default=2)
     parser.add_argument("--fingerprint", action="store_true")
     parser.add_argument("-H", "--headers")
@@ -255,36 +272,41 @@ def main():
     
     args = parser.parse_args()
 
-    # --- New logic for selecting mode and payloads ---
-    test_type = 'XSS'
-    payloads = None
-
+    # Determine target list
+    if args.url:
+        targets = [args.url]
+    else: # args.list
+        targets = load_payloads_from_file(args.list)
+        if targets is None:
+            print(f"[{Fore.RED}ERROR{Style.RESET_ALL}] URL list file not found or is empty: {args.list}")
+            return
+            
+    # Determine which payloads to use
+    test_type, payloads = 'XSS', None
     if args.htmli:
         test_type = 'HTMLi'
-        if args.payloads_htmli:
-            print(f"[*] Loading HTML Injection payloads from {args.payloads_htmli}...")
-            payloads = load_payloads_from_file(args.payloads_htmli)
+        payload_file = args.payloads_htmli
+        if payload_file:
+            payloads = load_payloads_from_file(payload_file)
+            if payloads is None:
+                print(f"[{Fore.RED}ERROR{Style.RESET_ALL}] HTMLi payload file not found: {payload_file}")
+                return
         else:
-            print("[*] Using default built-in HTML Injection payloads...")
             payloads = DEFAULT_HTMLI_PAYLOADS
     else: # Default XSS Mode
         if not args.payloads:
             print(f"{Fore.RED}Error: XSS mode requires a payload file specified with -p.{RESET}")
             return
-        print(f"[*] Loading XSS payloads from {args.payloads}...")
         payloads = load_payloads_from_file(args.payloads)
 
-    if not args.url:
-        print(f"{Fore.RED}Error: Start URL (-u) is required.{RESET}")
-        return
     if not payloads:
-        print(f"{Fore.RED}Error: Could not load payloads. Exiting.{RESET}")
+        print(f"[{Fore.RED}Error: Could not load payloads. Exiting.{RESET}")
         return
         
     headers = dict(item.split(":", 1) for item in args.headers.split(",")) if args.headers else None
     
     scanner = PoisonXSS(
-        start_url=args.url, payloads=payloads, test_type=test_type, headers=headers, workers=args.workers,
+        targets=targets, payloads=payloads, test_type=test_type, headers=headers, workers=args.workers,
         proxy=args.proxy, verbose=args.verbose, delay=args.delay,
         crawl=args.crawl, depth=args.depth, fingerprint=args.fingerprint
     )
