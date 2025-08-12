@@ -1,6 +1,6 @@
 # PoisonXSS
 
-![PoisonXSS Banner](https://raw.githubusercontent.com/mkhairin/poisonxss/main/img/poisonxss.png)
+![PoisonXSS Banner](https://github.com/mkhairin/poisonxss/blob/main/img/banner.png)
 
 PoisonXSS adalah tool scanner kerentanan Cross-Site Scripting (XSS) dan HTML Injection yang cepat, fleksibel, dan cerdas. Dibangun dengan Python dan `asyncio`, PoisonXSS mampu melakukan pemindaian secara konkuren untuk efisiensi maksimal.
 
