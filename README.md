@@ -23,7 +23,7 @@ The installation process is quick and easy.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/mkhairin/poisonxss](https://github.com/mkhairin/poisonxss)
+    git clone https://github.com/mkhairin/poisonxss
     cd poisonxss
     ```
 
