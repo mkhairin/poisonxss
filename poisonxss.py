@@ -295,12 +295,12 @@ def main():
             payloads = DEFAULT_HTMLI_PAYLOADS
     else: # Default XSS Mode
         if not args.payloads:
-            print(f"{Fore.RED}Error: XSS mode requires a payload file specified with -p.{RESET}")
+            print(f"{Fore.RED}Error: XSS mode requires a payload file specified with -p.{Style.RESET_ALL}")
             return
         payloads = load_payloads_from_file(args.payloads)
 
     if not payloads:
-        print(f"[{Fore.RED}Error: Could not load payloads. Exiting.{RESET}")
+        print(f"[{Fore.RED}Error: Could not load payloads. Exiting.{Style.RESET_ALL}")
         return
         
     headers = dict(item.split(":", 1) for item in args.headers.split(",")) if args.headers else None
