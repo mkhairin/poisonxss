@@ -1,6 +1,7 @@
 #
-# PoisonXSS - Version 2.9
+# PoisonXSS - Version 3.0 (JS-Aware Update)
 # The Accuracy & Scope Update: Selenium Verification and POST Method Testing.
+# Now with JS-Aware crawling capabilities.
 #
 
 import argparse
@@ -20,13 +21,14 @@ except ImportError:
 try:
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options as ChromeOptions
+    from selenium.webdriver.common.by import By
     from selenium.common.exceptions import UnexpectedAlertPresentException, NoAlertPresentException, WebDriverException
 except ImportError:
     print(f"[{Fore.RED}ERROR{Style.RESET_ALL}] Selenium is not installed. Please run 'pip install selenium'")
     sys.exit()
 
 # --- Version Configuration & Default Payloads ---
-__version__ = "2.9"
+__version__ = "3.0" # MODIFIED: Version bump
 DEFAULT_HTMLI_PAYLOADS = ["<h1>HTMLi-Test</h1>", "<i>PoisonXSS</i>"]
 
 # Initialize colorama
@@ -60,7 +62,7 @@ def show_help_syntax():
     print(f"  {"--htmli".ljust(WIDTH)}Switch to HTML Injection testing mode\n")
     
     print(f"{GREEN}Crawler (Only with -u):{RESET}")
-    print(f"  {"--crawl".ljust(WIDTH)}Enable the web crawler from the start URL")
+    print(f"  {"--crawl".ljust(WIDTH)}Enable the JS-Aware web crawler from the start URL") # MODIFIED: Help text
     print(f"  {"--depth=DEPTH".ljust(WIDTH)}Maximum crawl depth (default: 2)\n")
     
     print(f"{GREEN}Intelligence:{RESET}")
@@ -97,6 +99,86 @@ async def verify_with_selenium(url):
         if driver:
             driver.quit()
 
+# NEW FUNCTION: JS-Aware Crawler using Selenium
+def discover_with_selenium(start_url, max_depth):
+    """
+    Crawls a web application using Selenium to discover links and forms,
+    including those rendered by JavaScript.
+    """
+    print("-" * 50)
+    print(f"[*] {Fore.BLUE}Starting Discovery Phase (JS-Aware Crawler){Style.RESET_ALL}")
+    
+    options = ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--log-level=3")
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    
+    driver = None
+    all_discovered_urls = set()
+    urls_to_visit = [(start_url, 0)]
+    visited_urls = set()
+
+    try:
+        driver = webdriver.Chrome(options=options)
+        base_netloc = urlparse(start_url).netloc
+
+        while urls_to_visit:
+            current_url, current_depth = urls_to_visit.pop(0)
+
+            if current_url in visited_urls or current_depth > max_depth:
+                continue
+
+            print(f"[{Fore.BLUE}CRAWLING{Style.RESET_ALL}] Depth: {current_depth} | URL: {current_url}")
+            visited_urls.add(current_url)
+
+            try:
+                driver.get(current_url)
+                # Simple wait for dynamic content, can be improved with WebDriverWait
+                asyncio.run(asyncio.sleep(2)) 
+                
+                # Add the current URL if it has parameters
+                if urlparse(current_url).query:
+                    all_discovered_urls.add(current_url)
+
+                # Find all links
+                links = driver.find_elements(By.TAG_NAME, "a")
+                for link in links:
+                    href = link.get_attribute('href')
+                    if href:
+                        abs_url = urljoin(current_url, href).split('#')[0]
+                        if urlparse(abs_url).netloc == base_netloc and abs_url not in visited_urls:
+                            urls_to_visit.append((abs_url, current_depth + 1))
+                
+                # Find all forms and create testable URLs
+                soup = BeautifulSoup(driver.page_source, 'lxml')
+                for form in soup.find_all('form'):
+                    action = form.get('action', current_url)
+                    form_url = urljoin(current_url, action)
+                    
+                    # For simplicity, we create a GET-like URL for discovery.
+                    # The scanner will handle both GET/POST testing later.
+                    params = {}
+                    for inp in form.find_all(['input', 'textarea']):
+                        name = inp.get('name')
+                        if name:
+                            params[name] = "test"
+                    
+                    if params:
+                        testable_url = f"{form_url}?{urlencode(params)}"
+                        all_discovered_urls.add(testable_url)
+
+            except Exception as e:
+                print(f"[{Fore.YELLOW}WARNING{Style.RESET_ALL}] Could not crawl {current_url}: {e}")
+
+    finally:
+        if driver:
+            driver.quit()
+
+    print(f"[*] {Fore.GREEN}Discovery Phase Finished. Found {len(all_discovered_urls)} potential targets.{Style.RESET_ALL}")
+    print("-" * 50)
+    return list(all_discovered_urls)
+
+
 async def fingerprint_technology(session, url, headers, proxy):
     """Analyzes headers and content to identify server technology."""
     findings = []
@@ -118,9 +200,10 @@ async def fingerprint_technology(session, url, headers, proxy):
 
 
 class PoisonXSS:
-    def __init__(self, targets, payloads, test_type='XSS', headers=None, workers=50, proxy=None, verbose=False, delay=0, crawl=False, depth=2, fingerprint=False, use_selenium=False):
+    # MODIFIED: Removed crawl, depth parameters from init as crawling is now separate
+    def __init__(self, targets, payloads, test_type='XSS', headers=None, workers=50, proxy=None, verbose=False, delay=0, fingerprint=False, use_selenium=False):
         self.targets = targets
-        self.start_url = targets[0] 
+        self.start_url = targets[0] if targets else ''
         self.base_payloads = payloads
         self.test_type = test_type
         self.headers = headers if headers is not None else {}
@@ -132,9 +215,6 @@ class PoisonXSS:
         self.proxy = proxy
         self.verbose = verbose
         self.delay = delay
-        self.crawl = crawl
-        self.depth = depth
-        self.scanned_urls_and_forms = set()
         self.fingerprint = fingerprint
         self.tech_findings = []
         self.use_selenium = use_selenium
@@ -146,14 +226,13 @@ class PoisonXSS:
    / __ \/ __ \/ / ___/ __ \/ __ \| |/_/ ___/ ___/
   / /_/ / /_/ / (__  ) /_/ / / / />  <(__  |__  ) 
  / .___/\____/_/____/\____/_/ /_/_/|_/____/____/  
-/_/                Created by Muhammad Khairin                                            
+/_/                                               
         """)
-        print(f"{Fore.CYAN}PoisonXSS v{__version__} [Final]{Style.RESET_ALL} | The All-in-One XSS Scanner")
+        print(f"{Fore.CYAN}PoisonXSS v{__version__} [JS-Aware]{Style.RESET_ALL} | The All-in-One XSS Scanner")
         print(f"[*] Testing Mode  : {Fore.MAGENTA}{self.test_type}{Style.RESET_ALL}")
         print(f"[*] Start Time    : {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[*] Targets Loaded: {len(self.targets)}")
         print(f"[*] Base Payloads : {len(self.base_payloads)} loaded")
-        if self.crawl: print(f"[*] Crawler Mode  : {Fore.GREEN}Enabled (Depth: {self.depth}){Style.RESET_ALL}")
         if self.use_selenium: print(f"[*] Accuracy Mode : {Fore.GREEN}Selenium Enabled{Style.RESET_ALL}")
         if self.fingerprint:
             print(f"[*] Fingerprint   : {Fore.GREEN}Enabled{Style.RESET_ALL}")
@@ -195,7 +274,7 @@ class PoisonXSS:
             print(f"[{Fore.GREEN}SAFE{Style.RESET_ALL}] Param: {Fore.CYAN}{param_name}{Style.RESET_ALL}")
         if self.delay > 0: await asyncio.sleep(self.delay)
 
-    async def _test_get_url(self, session, url, payloads_to_use):
+    async def _test_url_parameters(self, session, url, payloads_to_use):
         tasks = []
         params = parse_qs(urlparse(url).query)
         if not params: return
@@ -205,6 +284,33 @@ class PoisonXSS:
                 test_url = f"{url.split('?')[0]}?{urlencode(modified_params, doseq=True)}"
                 tasks.append(self._fetch_and_check(session, test_url, 'GET', {'param_name': param_name, 'original_payload': payload}))
         await asyncio.gather(*tasks)
+
+    async def _scan_target(self, session, url, payloads_to_use):
+        """
+        Scans a single URL for GET parameters and for forms to test via GET/POST.
+        """
+        # 1. Test URL parameters (GET)
+        await self._test_url_parameters(session, url, payloads_to_use)
+
+        # 2. Find and test forms on the page
+        try:
+            async with session.get(url, proxy=self.proxy, headers=self.headers, timeout=15) as response:
+                if "text/html" not in response.headers.get('Content-Type', ''): return
+                html_content = await response.text()
+
+            soup = BeautifulSoup(html_content, 'lxml')
+            for form in soup.find_all('form'):
+                action = form.get('action', url)
+                form_url = urljoin(url, action)
+                method = form.get('method', 'get').upper()
+                inputs = [{'name': i.get('name'), 'type': i.get('type', 'text'), 'value': i.get('value', '')} for i in form.find_all(['input', 'textarea']) if i.get('name')]
+                
+                if not inputs: continue
+                
+                await self._test_form(session, {'action': form_url, 'method': method, 'inputs': inputs}, payloads_to_use)
+
+        except Exception:
+            pass # Fail silently if a single URL can't be fetched
 
     async def _test_form(self, session, form_details, payloads_to_use):
         tasks = []
@@ -219,65 +325,31 @@ class PoisonXSS:
                 for i in inputs:
                     if i.get('name'):
                         data[i['name']] = payload if i == input_to_test else i.get('value', 'test')
+                
                 if method.upper() == 'POST':
-                    task = self._fetch_and_check(session, action_url, 'POST', {'param_name': input_to_test['name'], 'original_payload': payload}, data=data)
+                    task = self._fetch_and_check(session, action_url, 'POST', {'param_name': input_to_test.get('name'), 'original_payload': payload}, data=data)
                     tasks.append(task)
-                else:
+                else: # GET
                     test_url = f"{action_url}?{urlencode(data)}"
-                    task = self._fetch_and_check(session, test_url, 'GET', {'param_name': input_to_test['name'], 'original_payload': payload})
+                    task = self._fetch_and_check(session, test_url, 'GET', {'param_name': input_to_test.get('name'), 'original_payload': payload})
                     tasks.append(task)
         await asyncio.gather(*tasks)
-
-    async def _crawl_and_scan(self, session, url, current_depth, payloads_to_use):
-        url_hash = hash(url)
-        if current_depth > self.depth or url_hash in self.scanned_urls_and_forms or urlparse(url).netloc != urlparse(self.start_url).netloc:
-            return
-        if self.verbose: print(f"[{Fore.BLUE}CRAWLING{Style.RESET_ALL}] Depth: {current_depth} | URL: {url}")
-        self.scanned_urls_and_forms.add(url_hash)
-        new_links, forms = set(), []
-        try:
-            async with session.get(url, proxy=self.proxy, headers=self.headers, timeout=15) as response:
-                if "text/html" not in response.headers.get('Content-Type', ''): return
-                html_content = await response.text()
-            await self._test_get_url(session, url, payloads_to_use)
-            if self.crawl:
-                soup = BeautifulSoup(html_content, 'lxml')
-                for a_tag in soup.find_all('a', href=True):
-                    link = urljoin(url, a_tag['href']).split('#')[0]
-                    if urlparse(link).scheme in ['http', 'https']: new_links.add(link)
-                for form in soup.find_all('form'):
-                    action = form.get('action', url)
-                    form_url = urljoin(url, action)
-                    form_hash = hash(f"{form_url}-{form.get('method', 'get')}")
-                    if form_hash in self.scanned_urls_and_forms: continue
-                    self.scanned_urls_and_forms.add(form_hash)
-                    form_details = {
-                        'action': form_url,
-                        'method': form.get('method', 'get').upper(),
-                        'inputs': [{'name': i.get('name'), 'type': i.get('type', 'text'), 'value': i.get('value', '')} for i in form.find_all(['input', 'textarea']) if i.get('name')]
-                    }
-                    if form_details['inputs']: forms.append(form_details)
-        except Exception: pass
-        form_tasks = [self._test_form(session, form, payloads_to_use) for form in forms]
-        await asyncio.gather(*form_tasks)
-        crawl_tasks = [self._crawl_and_scan(session, link, current_depth + 1, payloads_to_use) for link in new_links]
-        await asyncio.gather(*crawl_tasks)
-
+    
+    # MODIFIED: Simplified run method
     async def run(self):
         connector = aiohttp.TCPConnector(ssl=False, limit_per_host=self.workers)
         async with aiohttp.ClientSession(connector=connector) as session:
-            if self.fingerprint:
+            if self.fingerprint and self.start_url:
                 self.tech_findings = await fingerprint_technology(session, self.start_url, self.headers, self.proxy)
+            
             self._print_banner()
+            
             payloads_to_use = self.base_payloads
-            print(f"[*] Total payloads to test: {len(payloads_to_use)}")
-            if self.crawl:
-                print("[*] Starting in Crawler Mode...")
-                await self._crawl_and_scan(session, self.start_url, 0, payloads_to_use)
-            else:
-                print("[*] Starting in List Mode...")
-                tasks = [self._test_get_url(session, url, payloads_to_use) for url in self.targets]
-                await asyncio.gather(*tasks)
+            print(f"[*] Starting Scan Phase on {len(self.targets)} targets...")
+            print(f"[*] Total payloads to test per parameter: {len(payloads_to_use)}")
+            
+            tasks = [self._scan_target(session, url, payloads_to_use) for url in self.targets]
+            await asyncio.gather(*tasks)
 
     def print_summary(self, output_file=None):
         end_time = datetime.now()
@@ -336,7 +408,7 @@ def main():
     parser.add_argument("-p", "--payloads", help="File with XSS payloads (default mode)")
     parser.add_argument("--payloads-htmli", help="File with HTML Injection payloads (for --htmli mode)")
     parser.add_argument("--htmli", action="store_true", help="Switch to HTML Injection testing mode")
-    parser.add_argument("--crawl", action="store_true", help="Enable the web crawler (only works with -u)")
+    parser.add_argument("--crawl", action="store_true", help="Enable the JS-Aware web crawler (only works with -u)")
     parser.add_argument("--depth", type=int, default=2)
     parser.add_argument("--fingerprint", action="store_true")
     parser.add_argument("--selenium", action="store_true", help="Enable Selenium-based verification for max accuracy")
@@ -349,14 +421,28 @@ def main():
     parser.add_argument("-o", "--output")
     
     args = parser.parse_args()
-
+    
+    targets = []
+    # MODIFIED: Main logic to incorporate JS-Aware crawler
     if args.url:
-        targets = [args.url]
-    else:
+        if args.crawl:
+            # Phase 1: Discover targets with Selenium
+            discovered_targets = discover_with_selenium(args.url, args.depth)
+            # Ensure the start URL is also included for scanning
+            if args.url not in discovered_targets:
+                targets.append(args.url)
+            targets.extend(discovered_targets)
+        else:
+            targets = [args.url]
+    else: # args.list
         targets = load_payloads_from_file(args.list)
         if targets is None:
             print(f"[{Fore.RED}ERROR{Style.RESET_ALL}] URL list file not found or is empty: {args.list}")
             return
+    
+    if not targets:
+        print(f"[{Fore.YELLOW}WARNING{Style.RESET_ALL}] No targets to scan. Exiting.")
+        return
             
     test_type, payloads = 'XSS', None
     if args.htmli:
@@ -389,10 +475,11 @@ def main():
     if args.cookie:
         headers['Cookie'] = args.cookie
     
+    # MODIFIED: Removed crawl and depth from scanner initialization
     scanner = PoisonXSS(
         targets=targets, payloads=payloads, test_type=test_type, headers=headers, workers=args.workers,
         proxy=args.proxy, verbose=args.verbose, delay=args.delay,
-        crawl=args.crawl, depth=args.depth, fingerprint=args.fingerprint, use_selenium=args.selenium
+        fingerprint=args.fingerprint, use_selenium=args.selenium
     )
     
     try:

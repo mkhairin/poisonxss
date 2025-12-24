@@ -1,6 +1,8 @@
+
 #
-# PoisonXSS - Version 2.9
+# PoisonXSS - Version 2.9 (Efficient Scan Update)
 # The Accuracy & Scope Update: Selenium Verification and POST Method Testing.
+# MODIFIKASI: Ditambahkan logika "Stop on First Success" untuk efisiensi.
 #
 
 import argparse
@@ -138,6 +140,8 @@ class PoisonXSS:
         self.fingerprint = fingerprint
         self.tech_findings = []
         self.use_selenium = use_selenium
+        # MODIFIKASI: Menambahkan set untuk melacak titik injeksi yang sudah dikonfirmasi rentan
+        self.confirmed_vulnerable_points = set()
 
     def _print_banner(self):
         print(r"""
@@ -168,6 +172,15 @@ class PoisonXSS:
     async def _fetch_and_check(self, session, url, method, payload_info, data=None):
         param_name = payload_info['param_name']
         original_payload = payload_info['original_payload']
+
+        # MODIFIKASI: Membuat ID unik untuk titik injeksi (URL dasar, nama parameter, metode)
+        base_url = url.split('?')[0]
+        vulnerability_point_id = (base_url, param_name, method.upper())
+
+        # MODIFIKASI: Pengecekan awal. Jika titik ini sudah ditemukan rentan, hentikan pengujian.
+        if vulnerability_point_id in self.confirmed_vulnerable_points:
+            return
+
         is_vulnerable = False
         try:
             response_text = ""
@@ -187,12 +200,19 @@ class PoisonXSS:
                     is_vulnerable = await verify_with_selenium(final_url)
 
                 if is_vulnerable:
+                    # MODIFIKASI: Menandai titik ini sebagai rentan agar tidak diuji lagi oleh task lain.
+                    self.confirmed_vulnerable_points.add(vulnerability_point_id)
+                    
                     verification_status = f"({Fore.GREEN}Verified by Selenium{Style.RESET_ALL})" if self.use_selenium and method.upper() == 'GET' and self.test_type == 'XSS' else ""
-                    print(f"[{Fore.RED}VULNERABLE - {self.test_type}{Style.RESET_ALL}] {method.upper()} | Param: {Fore.CYAN}{param_name}{Style.RESET_ALL} {verification_status} | URL: {url}")
-                    self.results.append({"url": url, "param": param_name, "payload": original_payload, "method": method.upper()})
+                    print(f"[{Fore.RED}VULNERABLE - {self.test_type}{Style.RESET_ALL}] {method.upper()} | Param: {Fore.CYAN}{param_name}{Style.RESET_ALL} {verification_status} | URL: {base_url}")
+                    self.results.append({"url": base_url, "param": param_name, "payload": original_payload, "method": method.upper()})
         except Exception: pass
+        
         if self.verbose and not is_vulnerable:
-            print(f"[{Fore.GREEN}SAFE{Style.RESET_ALL}] Param: {Fore.CYAN}{param_name}{Style.RESET_ALL}")
+            # MODIFIKASI: Pengecekan tambahan agar tidak melaporkan "SAFE" jika sudah ditemukan rentan
+            if vulnerability_point_id not in self.confirmed_vulnerable_points:
+                print(f"[{Fore.GREEN}SAFE{Style.RESET_ALL}] Param: {Fore.CYAN}{param_name}{Style.RESET_ALL}")
+        
         if self.delay > 0: await asyncio.sleep(self.delay)
 
     async def _test_get_url(self, session, url, payloads_to_use):
@@ -200,33 +220,55 @@ class PoisonXSS:
         params = parse_qs(urlparse(url).query)
         if not params: return
         for param_name in params:
+            # MODIFIKASI: Pengecekan sebelum membuat banyak task. Jika parameter sudah rentan, lewati.
+            base_url = url.split('?')[0]
+            vulnerability_point_id = (base_url, param_name, 'GET')
+            if vulnerability_point_id in self.confirmed_vulnerable_points:
+                continue
+            
             for payload in payloads_to_use:
                 modified_params = {**params, param_name: [payload]}
-                test_url = f"{url.split('?')[0]}?{urlencode(modified_params, doseq=True)}"
+                test_url = f"{base_url}?{urlencode(modified_params, doseq=True)}"
                 tasks.append(self._fetch_and_check(session, test_url, 'GET', {'param_name': param_name, 'original_payload': payload}))
-        await asyncio.gather(*tasks)
+        
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _test_form(self, session, form_details, payloads_to_use):
         tasks = []
         action_url = form_details['action']
         method = form_details['method']
         inputs = form_details['inputs']
-        for payload in payloads_to_use:
-            for input_to_test in inputs:
-                if input_to_test.get('type') not in ['text', 'search', 'email', 'url', 'password', 'textarea', None]:
-                    continue
+
+        for input_to_test in inputs:
+            # MODIFIKASI: Pengecekan sebelum membuat banyak task. Jika input form sudah rentan, lewati.
+            param_name = input_to_test.get('name')
+            if not param_name: continue
+            
+            base_url = action_url.split('?')[0]
+            vulnerability_point_id = (base_url, param_name, method.upper())
+            if vulnerability_point_id in self.confirmed_vulnerable_points:
+                continue
+
+            if input_to_test.get('type') not in ['text', 'search', 'email', 'url', 'password', 'textarea', None]:
+                continue
+            
+            for payload in payloads_to_use:
                 data = {}
                 for i in inputs:
                     if i.get('name'):
                         data[i['name']] = payload if i == input_to_test else i.get('value', 'test')
+                
                 if method.upper() == 'POST':
-                    task = self._fetch_and_check(session, action_url, 'POST', {'param_name': input_to_test['name'], 'original_payload': payload}, data=data)
+                    task = self._fetch_and_check(session, action_url, 'POST', {'param_name': param_name, 'original_payload': payload}, data=data)
                     tasks.append(task)
                 else:
                     test_url = f"{action_url}?{urlencode(data)}"
-                    task = self._fetch_and_check(session, test_url, 'GET', {'param_name': input_to_test['name'], 'original_payload': payload})
+                    task = self._fetch_and_check(session, test_url, 'GET', {'param_name': param_name, 'original_payload': payload})
                     tasks.append(task)
-        await asyncio.gather(*tasks)
+        
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _crawl_and_scan(self, session, url, current_depth, payloads_to_use):
         url_hash = hash(url)
