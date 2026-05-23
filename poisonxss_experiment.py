@@ -5,6 +5,7 @@
 
 import argparse
 import asyncio
+import os
 import aiohttp
 import json
 from urllib.parse import urlparse, urlencode, parse_qs, unquote, quote, urljoin
@@ -13,6 +14,8 @@ from datetime import datetime
 import sys
 import random
 import re
+import time
+
 try:
     from bs4 import BeautifulSoup
 except ImportError:
@@ -27,7 +30,10 @@ except ImportError:
     sys.exit()
 
 # --- Version Configuration & Default Payloads ---
-__version__ = "2.9"
+__version__ = "3.0"
+# <-- File default yang akan dicari
+DEFAULT_PAYLOAD_FILENAME = "xss_payloads.txt"
+DEFAULT_HTMLI_FILENAME = "htmli_payloads.txt"
 DEFAULT_HTMLI_PAYLOADS = ["<h1>HTMLi-Test</h1>", "<i>PoisonXSS</i>"]
 
 # Daftar User-Agent Browser Populer untuk menipu WAF
@@ -102,8 +108,10 @@ async def verify_with_selenium(url, method='GET', post_data=None):
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
     driver = None
+    driver.get(url)  # atau execute script
+    time.sleep(2)   # Tunggu 2 detik agar alert sempat muncul
     try:
-        driver = webdriver.Chrome(options=options)
+        driver.switch_to.alert.accept()
 
         # Logika baru untuk POST request via DOM Manipulation
         if method == 'POST' and post_data:
@@ -333,22 +341,62 @@ class PoisonXSS:
                                 f"[{Fore.YELLOW}IGNORED{Style.RESET_ALL}] Payload found inside <{tag}> tag (Safe Context).")
                         is_vulnerable = False
 
-               # --- VERIFIKASI SELENIUM (UPDATED) ---
-                if self.use_selenium and self.test_type == 'XSS':
-                    # Hapus batasan "method == GET"
-                    if self.verbose: 
-                        print(f"[{Fore.BLUE}VERIFYING{Style.RESET_ALL}] Potential {method.upper()} finding in {param_name}. Launching Selenium...")
-                    
-                    # Panggil fungsi dengan parameter method dan data
-                    is_vulnerable = await verify_with_selenium(final_url, method.upper(), data)
+               # --- LOGIKA REPORTING & VERIFICATION (FIXED FOR HTMLi) ---
+                if is_vulnerable:
+                    # Tampilkan info awal
+                    if self.verbose:
+                        print(
+                            f"[{Fore.YELLOW}POTENTIAL{Style.RESET_ALL}] Reflected Payload found in {param_name}. Checking validity...")
 
-                    # Cetak Hasil
-                    if is_vulnerable:
-                        verification_status = f"({Fore.GREEN}Verified by Selenium{Style.RESET_ALL})" if self.use_selenium and method.upper(
-                        ) == 'GET' and self.test_type == 'XSS' else ""
-                        print(f"[{Fore.RED}VULNERABLE - {self.test_type}{Style.RESET_ALL}] {method.upper()} | Param: {Fore.CYAN}{param_name}{Style.RESET_ALL} {verification_status} | URL: {url}")
+                    selenium_verified = False
+
+                    # 1. Jalankan Selenium (Hanya untuk XSS)
+                    if self.use_selenium and self.test_type == 'XSS':
+                        if self.verbose:
+                            print(
+                                f"[{Fore.BLUE}SELENIUM{Style.RESET_ALL}] Launching browser to verify execution...")
+
+                        selenium_verified = await verify_with_selenium(final_url, method.upper(), data)
+
+                        if selenium_verified:
+                            verification_msg = f"({Fore.GREEN}CONFIRMED by Selenium{Style.RESET_ALL})"
+                        else:
+                            verification_msg = f"({Fore.RED}Selenium Failed to Execute{Style.RESET_ALL})"
+
+                    # 2. Tentukan Status Akhir
+                    # Kita anggap Vulnerable JIKA:
+                    # A. Tipe tes adalah HTMLi (Cukup refleksi teks saja)
+                    # B. ATAU Selenium berhasil konfirmasi (untuk XSS)
+                    # C. ATAU User tidak mengaktifkan Selenium (percaya static analysis)
+
+                    should_report = False
+                    verification_msg = ""
+
+                    if self.test_type == 'HTMLi':
+                        should_report = True
+                        verification_msg = "(HTML Injection Reflected)"
+                    elif selenium_verified:
+                        should_report = True
+                    elif not self.use_selenium:
+                        should_report = True
+                        verification_msg = "(Static Analysis Only)"
+                    else:
+                        # Kasus: XSS + Selenium Aktif + Selenium Gagal
+                        should_report = False
+
+                    # 3. Cetak Hasil
+                    if should_report:
+                        print(
+                            f"[{Fore.RED}VULNERABLE - {self.test_type}{Style.RESET_ALL}] {method.upper()} | Param: {Fore.CYAN}{param_name}{Style.RESET_ALL} {verification_msg}")
+                        print(f"   └── URL: {url}")
+                        print(f"   └── Payload: {original_payload}")
                         self.results.append(
                             {"url": url, "param": param_name, "payload": original_payload, "method": method.upper()})
+                    else:
+                        # Jika Static ketemu TAPI Selenium Gagal (Khusus XSS)
+                        print(
+                            f"[{Fore.MAGENTA}UNVERIFIED{Style.RESET_ALL}] Payload reflected but Selenium failed to pop alert.")
+                        print(f"   └── URL: {url}")
 
         except Exception as e:
             pass  # Error handling minimal agar scan tidak berhenti total
@@ -554,34 +602,68 @@ def main():
 
     args = parser.parse_args()
 
+    # --- LOGIKA LOADING TARGET & PAYLOAD TERBARU ---
+
+    # 1. Load Targets
     if args.url:
         targets = [args.url]
     else:
+        if not args.list:
+            print(
+                f"[{Fore.RED}ERROR{Style.RESET_ALL}] You must specify a target URL (-u) or a list file (-l).")
+            return
         targets = load_payloads_from_file(args.list)
         if targets is None:
             print(
                 f"[{Fore.RED}ERROR{Style.RESET_ALL}] URL list file not found or is empty: {args.list}")
             return
 
-    test_type, payloads = 'XSS', None
+    # 2. Setup Test Type & Payloads
+    test_type = 'XSS'  # Default
+    payloads = None
+
+    # --- JIKA MODE HTML INJECTION ---
     if args.htmli:
         test_type = 'HTMLi'
-        payload_file = args.payloads_htmli
-        if payload_file:
-            payloads = load_payloads_from_file(payload_file)
-            if payloads is None:
-                print(
-                    f"[{Fore.RED}ERROR{Style.RESET_ALL}] HTMLi payload file not found: {payload_file}")
-                return
-        else:
-            payloads = DEFAULT_HTMLI_PAYLOADS
-    else:
-        if not args.payloads:
-            print(
-                f"{Fore.RED}Error: XSS mode requires a payload file specified with -p.{Style.RESET_ALL}")
-            return
-        payloads = load_payloads_from_file(args.payloads)
+        target_payload_file = args.payloads  # Gunakan argumen -p yang sama
 
+        # A. Jika user pakai -p
+        if target_payload_file:
+            payloads = load_payloads_from_file(target_payload_file)
+            if not payloads:
+                print(
+                    f"[{Fore.RED}ERROR{Style.RESET_ALL}] HTMLi payload file not found: {target_payload_file}")
+                return
+        # B. Jika tidak pakai -p, cari file default
+        else:
+            if os.path.exists(DEFAULT_HTMLI_FILENAME):
+                print(f"[{Fore.YELLOW}INFO{Style.RESET_ALL}] No payload specified. Using default HTMLi file: {Fore.CYAN}{DEFAULT_HTMLI_FILENAME}{Style.RESET_ALL}")
+                payloads = load_payloads_from_file(DEFAULT_HTMLI_FILENAME)
+            else:
+                # C. Terakhir, pakai hardcoded payloads
+                print(f"[{Fore.YELLOW}INFO{Style.RESET_ALL}] No file specified and '{DEFAULT_HTMLI_FILENAME}' not found. Using internal default payloads.")
+                payloads = DEFAULT_HTMLI_PAYLOADS
+
+    # --- JIKA MODE XSS (DEFAULT) ---
+    else:
+        target_payload_file = args.payloads
+
+        # A. Jika user TIDAK pakai -p, cari file default
+        if not target_payload_file:
+            if os.path.exists(DEFAULT_PAYLOAD_FILENAME):
+                print(f"[{Fore.YELLOW}INFO{Style.RESET_ALL}] No payload file specified (-p). Using default file: {Fore.CYAN}{DEFAULT_PAYLOAD_FILENAME}{Style.RESET_ALL}")
+                target_payload_file = DEFAULT_PAYLOAD_FILENAME
+            else:
+                # Error jika file default XSS juga tidak ada
+                print(
+                    f"[{Fore.RED}ERROR{Style.RESET_ALL}] Payload file not specified via -p, and default '{DEFAULT_PAYLOAD_FILENAME}' not found.")
+                print(f"[{Fore.YELLOW}HINT{Style.RESET_ALL}] Create a file named '{DEFAULT_PAYLOAD_FILENAME}' with payloads inside, or use -p yourfile.txt")
+                return
+
+        # Load file payload
+        payloads = load_payloads_from_file(target_payload_file)
+
+    # Cek terakhir untuk memastikan payload tidak kosong
     if not payloads:
         print(f"[{Fore.RED}Error: Could not load payloads. Exiting.{Style.RESET_ALL}")
         return
